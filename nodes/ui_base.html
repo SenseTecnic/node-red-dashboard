@@ -185,11 +185,11 @@ RED.nodes.registerType('ui_base',{
             })
             .appendTo(divTitle);
 
-        $('<a href="#" class="editor-button" style="margin-left: 10px;"><i class="fa fa-external-link"></i></a>')
-            .click(function(evt) {
-                window.open(document.location.protocol+"//"+document.location.host+RED.settings.httpNodeRoot+"ui");
-                evt.preventDefault();
-            })
+        $('<a href="/red/ui/" target="_blank" class="editor-button" style="margin-left: 10px;"><i class="fa fa-external-link"></i></a>')
+            // .click(function(evt) {
+            //     window.open(document.location.protocol+"//"+document.location.host+RED.settings.httpNodeRoot+"ui");
+            //     evt.preventDefault();
+            // })
             .appendTo(divTitle);
 
         var divTheme = $('<div>',{class:"form-row"}).appendTo(form);

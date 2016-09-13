@@ -3,7 +3,7 @@ var inited = false;
 module.exports = function(RED) {
     if (!inited) {
         inited = true;
-        init(RED.server, RED.httpNode || RED.httpAdmin, RED.log, RED.settings);
+        init(RED.server, RED.httpAdmin, RED.log, RED.settings);
     }
 
     return {
@@ -175,7 +175,7 @@ function init(server, app, log, redSettings) {
     settings.title = uiSettings.title || 'Node-RED Dashboard';
     settings.defaultGroupHeader = uiSettings.defaultGroup || 'Default';
 
-    var fullPath = join(redSettings.httpNodeRoot, settings.path);
+    var fullPath = join(redSettings.httpAdminRoot, settings.path);
     var socketIoPath = join(fullPath, 'socket.io');
 
     io = socketio(server, {path: socketIoPath});
