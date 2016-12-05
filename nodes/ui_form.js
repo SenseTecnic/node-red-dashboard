@@ -1,7 +1,7 @@
 module.exports = function(RED) {
     var ui = require('../ui')(RED);
 
-    function NumericNode(config) {
+    function FormNode(config) {
         RED.nodes.createNode(this, config);
         var node = this;
 
@@ -14,24 +14,21 @@ module.exports = function(RED) {
             node: node,
             tab: tab,
             group: group,
-            forwardInputMessages: config.passthru,
             control: {
-                type: 'numeric',
+                type: 'form',
                 label: config.label,
                 order: config.order,
-                format: config.format,
-                value: config.min,
-                min: config.min,
-                max: config.max,
+                value: config.payload || node.id,
                 width: config.width || group.config.width || 6,
-                height: config.height || 1
+                height: config.height || config.options.length ,//? config.options.length+3 : 3,
+                options: config.options,
+                formValue:config.formValue
             },
             beforeSend: function (msg) {
-                msg.topic = config.topic || msg.topic;
-            },
-            convert: ui.toNumber.bind(this, config)
+                msg.topic = config.topic;
+            }
         });
         node.on("close", done);
     }
-    RED.nodes.registerType("ui_numeric", NumericNode);
+    RED.nodes.registerType("ui_form", FormNode);
 };

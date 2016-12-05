@@ -10,15 +10,15 @@ md-toast .md-toast-content {
 	height: auto;
 }
 
+md-toast .md-toast-error {
+	color: rgba(255, 64, 41, 0.84);
+    font-weight: 500;
+    font-size: large;
+}
+
 md-card {
     box-shadow: none;
 }
-
-md-content {
-	background: transparent;
-}
-
-body { height: initial; }
 
 .node-red-ui--inline-link {
 	width: 100%;

@@ -1,3 +1,4 @@
+
 var app = angular.module('ui', ['ngMaterial', 'ngMdIcons', 'ngSanitize', 'nvd3ChartDirectives', 'sprintf']);
 
 app.config(['$mdThemingProvider', '$compileProvider',
@@ -9,8 +10,8 @@ app.config(['$mdThemingProvider', '$compileProvider',
         $compileProvider.aHrefSanitizationWhitelist(/.*/);
     }]);
 
-app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$location', '$document', '$mdToast', '$rootScope', '$sce', '$timeout',
-    function ($mdSidenav, $window, events, $location, $document, $mdToast, $rootScope, $sce, $timeout) {
+app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$location', '$document', '$mdToast', '$rootScope', '$sce', '$timeout', '$scope',
+    function ($mdSidenav, $window, events, $location, $document, $mdToast, $rootScope, $sce, $timeout, $scope) {
         var main = this;
 
         this.tabs = [];
@@ -24,7 +25,7 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
 
         this.select = function (index) {
             main.selectedTab = main.tabs[index];
-            $mdSidenav('left').close();
+            if (main.tabs.length > 0) { $mdSidenav('left').close(); }
             $location.path(index);
         };
 
@@ -36,13 +37,10 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
             }
             // open in iframe // TODO : check iframe options (see Google)
             else {
-                main.links[index].link = main.links[index].link || $sce.trustAsResourceUrl(main.links[index].link);
+                if (typeof main.links[index].link === "string") {
+                    main.links[index].link = $sce.trustAsResourceUrl(main.links[index].link);
+                }
                 main.selectedTab = main.links[index];
-                // $timeout(function() {
-                //     console.log(angular.element('.iframe'));
-                //     console.log(angular.element('.iframe').find('body'));
-                //     console.log(angular.element('.iframe').find('body').children());
-                // }, 2000);
             }
             $mdSidenav('left').close();
         };
@@ -57,8 +55,9 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                 main.selectedTab = main.tabs[prevTabIndex];
             }
             else {
-                main.select(0);
+                $timeout( function() { main.select(0); }, 50 );
             }
+            $mdToast.hide();
             done();
         }, function () {
             main.loaded = true;
@@ -88,6 +87,14 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
             }
         });
 
+        events.on('disconnect', function(m) {
+            $mdToast.show({
+                template: '<md-toast><div class="md-toast-error"><i class="fa fa-plug"></i>&nbsp; Connection lost</div></md-toast>',
+                position: 'top right',
+                hideDelay: 6000000
+            });
+        });
+
         events.on('show-toast', function (msg) {
             var toastScope = $rootScope.$new();
             toastScope.toast = msg;
@@ -99,6 +106,18 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
             };
             $mdToast.show(opts);
         });
+
+        $scope.onSwipeLeft = function(ev) { moveTab(-1); }
+        $scope.onSwipeRight = function(ev) { moveTab(1); }
+
+        function moveTab(d) {
+            var len = main.tabs.length;
+            if (len > 1) {
+                var i = (main.selectedTab.order - 1 + d) % len;
+                if (i < 0) { i += len; }
+                main.select(i);
+            }
+        }
 
         events.on('ui-control', function(msg) {
             if (msg.hasOwnProperty("tab")) { // if it's a request to change tabs
