@@ -1,9 +1,9 @@
 
-var inited = false;
+var server = null;
 
 module.exports = function(RED) {
-    if (!inited) {
-        inited = true;
+    if (server != RED.server) {
+        server = RED.server;
         init(RED.server, RED.httpAdmin, RED.log, RED.settings);
     }
     return {
