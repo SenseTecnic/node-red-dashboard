@@ -12,6 +12,10 @@ angular.module('ui').controller('uiComponentController', ['$scope', 'UiEvents', 
             me.item.getLabel = $interpolate(me.item.label).bind(null, me.item);
         }
 
+        if (typeof me.item.color === "string") {
+            me.item.getColor = $interpolate(me.item.color).bind(null, me.item);
+        }
+
         me.init = function () {
             switch (me.item.type) {
                 case 'button': {
@@ -21,11 +25,14 @@ angular.module('ui').controller('uiComponentController', ['$scope', 'UiEvents', 
                     break;
                 }
 
+                case 'switch': {
+                    me.switchClick = function () {
+                        throttle({ id:me.item.id, value:!me.item.value }, 0);
+                    };
+                    break;
+                }
+
                 case 'dropdown': {
-                    if (me.item.value !== me.item.id) {
-                        // push through any already selected value
-                        me.valueChanged(0);
-                    }
                     me.itemChanged = function () {
                         me.valueChanged(0);
                     };
@@ -44,62 +51,111 @@ angular.module('ui').controller('uiComponentController', ['$scope', 'UiEvents', 
                     var changeValue = function (delta) {
                         if (delta > 0) {
                             if (me.item.value < me.item.max) {
-                                me.item.value = Math.min(me.item.value + delta, me.item.max);
+                                me.item.value = Math.round(Math.min(me.item.value + delta, me.item.max)*10000)/10000;
                             }
                         } else if (delta < 0) {
                             if (me.item.value > me.item.min) {
-                                me.item.value = Math.max(me.item.value + delta, me.item.min);
+                                me.item.value = Math.round(Math.max(me.item.value + delta, me.item.min)*10000)/10000;
                             }
                         }
                     };
 
                     var range = me.item.max - me.item.min;
-                    var promise;
+                    var promise = null;
                     me.periodicChange = function (delta) {
                         changeValue(delta);
                         var i = 0;
                         promise = $interval(function () {
                             i++;
-                            if (i > 35) {
-                                changeValue(Math.sign(delta) * Math.floor(range / 10));
-                            } else if (i > 25) {
-                                changeValue(delta * 2);
-                            } else if (i > 15) {
-                                changeValue(delta);
-                            } else if (i > 5 && i % 2) {
-                                changeValue(delta);
-                            }
+                            if (i > 75) { changeValue( delta * 250); }
+                            else if (i > 50) { changeValue( delta * 50); }
+                            else if (i > 35) { changeValue(delta * 10); }
+                            else if (i > 25) { changeValue(delta * 2); }
+                            else if (i > 15) { changeValue(delta); }
+                            else if (i > 5 && i % 2) { changeValue(delta); }
                         }, 100);
                     };
                     me.stopPeriodic = function () {
-                        $interval.cancel(promise);
-                        me.valueChanged(0);
+                        if (promise) {
+                            $interval.cancel(promise);
+                            promise = null;
+                            me.valueChanged(0);
+                        }
                     };
                     break;
                 }
 
                 case 'chart': {
-                    if (!me.item.value || me.item.value === "changed") {
-                        me.item.value = [];
+                    me.item.theme = $scope.main.selectedTab.theme;
+                    break;
+                }
+
+                case 'colour-picker': {
+                    me.item.me = me;
+                    if ((me.item.width < 4) || (!me.item.showValue && !me.item.showPicker)) {
+                        me.item.showPicker = false;
+                        me.item.showValue = false;
+                        me.item.showSwatch = true;
                     }
-                    if (me.item.look === "line") {
-                        var lineColors = {
-                            'theme-dark': ['#0FBBC3', '#ffA500', '#00AF25', '#FF738C', '#E1E41D', '#C273FF', '#738BFF', '#FF7373', '#4D7B47', '#887D47']
-                        };
-                        me.item.value.forEach(function (line, index) {
-                            if (lineColors[$scope.main.selectedTab.theme]) {
-                                line.color = lineColors[$scope.main.selectedTab.theme][index];
-                            }
-                        })
-                        me.formatTime = function (d) {
-                            return d3.time.format(me.item.xformat)(new Date(d));
-                        };
+                    if (me.item.showPicker) {
+                        if (me.item.height < 4) {
+                            me.item.height = ((me.item.showSwatch || me.item.showValue) ? 4 : 3);
+                        }
+                    }
+                    me.item.options = {
+                        format: me.item.format,
+                        inline: me.item.showPicker,
+                        alpha: me.item.showAlpha,
+                        lightness: me.item.showLightness,
+                        swatch: me.item.showSwatch,
+                        swatchOnly: (me.item.width < 2 || !(me.item.showValue)),
+                        swatchPos: "right",
+                        pos: "bottom right",
+                        case: "lower",
+                        round: true,
+                        pickerOnly: me.item.showPicker && !(me.item.showSwatch || me.item.showValue)
+                    };
+                    me.item.key = function (event) {
+                        if ((event.charCode === 13) || (event.which === 13) || (event.charCode === 9) || (event.which === 9)) {
+                            events.emit({ id:me.item.id, value:me.item.value });
+                            if (me.api) { me.api.close(); }
+                        }
+                    }
+                    me.item.eventapi = {
+                        onChange: function(api,color,$event) {
+                            if ($event === undefined) { return; }
+                            me.valueChanged(0);
+                        },
+                        onOpen: function(api,color) {
+                            me.api = api;
+                        }
                     }
                     break;
                 }
+
+                case 'date-picker': {
+                    if (me.item.ddd !== undefined) {
+                        if (typeof me.item.ddd === "string") {
+                            me.item.ddd = new Date(me.item.ddd);
+                            //var b = me.item.ddd.split(/\D+/);
+                            //me.item.ddd = new Date(Date.UTC(b[0], --b[1], b[2], b[3], b[4], b[5], b[6]));
+                        }
+                    }
+                    me.processInput = function (msg) {
+                        msg.value = new Date(msg.value);
+                        me.item.ddd = msg.value;
+                    };
+                    me.setDate = function () {
+                        me.item.value = me.item.ddd;
+                        me.valueChanged(0);
+                    };
+                    me.item.me = me;
+                    break;
+                }
+
                 case 'form': {
-                    me.stop=function(event) {
-                        if (13 == event.which) {
+                    me.stop = function(event) {
+                        if ((event.charCode === 13) || (event.which === 13)) {
                             event.preventDefault();
                             event.stopPropagation();
                         }
@@ -121,15 +177,26 @@ angular.module('ui').controller('uiComponentController', ['$scope', 'UiEvents', 
                         $scope.$$childTail.form.$setUntouched();
                         $scope.$$childTail.form.$setPristine();
                     };
+                    break;
+                }
+
+                case 'template' : {
+                    me.setFormat = function (format) {
+                        me.item.format = format;
+                    }
+
+                    // override format with msg.template if defined
+                    if (me.item.msg !== undefined && me.item.msg.template !== undefined) {
+                        me.setFormat(me.item.msg.template);
+                    }
+                    break;
                 }
             }
         }
 
         me.valueChanged = function (throttleTime) {
-            throttle({
-                id: me.item.id,
-                value: me.item.value
-            }, typeof throttleTime === "number" ? throttleTime : 10);
+            throttle({ id:me.item.id, value:me.item.value },
+                typeof throttleTime === "number" ? throttleTime : 10);
         };
 
         // will emit me.item.value when enter is pressed
@@ -145,7 +212,6 @@ angular.module('ui').controller('uiComponentController', ['$scope', 'UiEvents', 
                 events.emit(data);
                 return;
             }
-
             if (timer) {
                 clearTimeout(timer);
             }

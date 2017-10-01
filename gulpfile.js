@@ -1,55 +1,49 @@
-/**
- * Copyright 2015, 2016 IBM Corp
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- **/
 
 var
     gulp = require('gulp'),
     concat = require('gulp-concat'),
+    exec = require('child_process').exec,
     fs = require('fs'),
     ghtmlSrc = require('gulp-html-src'),
     gutil = require('gulp-util'),
     gulpif = require('gulp-if'),
     header = require("gulp-header"),
     htmlreplace = require('gulp-html-replace'),
+    insertLines = require('gulp-insert-lines'),
     manifest = require('gulp-manifest'),
     minifyCss = require('gulp-clean-css'),
     minifyHTML = require('gulp-htmlmin'),
     path = require('path'),
-    spawn = require('child_process').spawn,
+    resources = require('gulp-resources'),
+    removeHtml = require('gulp-remove-html'),
+    //spawn = require('child_process').spawn,
     streamqueue = require('streamqueue'),
     templateCache = require('gulp-angular-templatecache'),
     uglify = require('gulp-uglify'),
     jshint = require('gulp-jshint'),
     jscs = require('gulp-jscs');
 
-gulp.task('default', ['manifest']);
-
-gulp.task('build', ['icon', 'js', 'css', 'index', 'fonts']);
-
-gulp.task('publish', ['build'], function (done) {
-    spawn('npm', ['publish'], { stdio:'inherit' }).on('close', done);
+//gulp.task('default', ['manifest']);
+gulp.task('default', ['lint','jscs'], function() {
+    gulp.start('manifest');
 });
 
+gulp.task('build', ['icon', 'js', 'css', 'less', 'index', 'fonts']);
+
+// gulp.task('publish', ['build'], function (done) {
+//     spawn('npm', ['publish'], { stdio:'inherit' }).on('close', done);
+// });
+
 gulp.task('manifest', ['build'], function() {
-    gulp.src(['dist/*','dist/css/*','dist/js/*','dist/fonts/*'], { base: 'dist/' })
+    //gulp.src(['dist/*','dist/css/*','dist/js/*','dist/fonts/*','dist/font-awesome/*'], { base: 'dist/' })
+    gulp.src(['dist/*','dist/css/*','dist/js/*','dist/font-awesome/fonts/*'], { base: 'dist/' })
     .pipe(manifest({
         hash: true,
         //preferOnline: true,
         network: ['*'],
         filename: 'dashboard.appcache',
-        exclude: 'dashboard.appcache'
+        //exclude: 'dashboard.appcache'
+        exclude: ['dashboard.appcache','index.html']
     }))
     .pipe(gulp.dest('dist/'));
 });
@@ -64,25 +58,36 @@ gulp.task('lint', function() {
 gulp.task('jscs', function() {
     return gulp.src(['*.js','nodes/*.js','src/*.js','src/*/*.js','src/*/*/*.js'])
         .pipe(jscs())
-        .pipe(jscs.reporter());
+        //.pipe(jscs({fix: true}))
+        .pipe(jscs.reporter("inline"))
 });
 
 gulp.task('index', function() {
     return gulp.src('src/index.html')
     .pipe(htmlreplace({
         'css': 'css/app.min.css',
-        'js': 'js/app.min.js'
+        'js': 'js/app.min.js',
+    }))
+    .pipe(insertLines({
+        'before': /<\/head>$/,
+        'lineBefore': '<link rel="stylesheet/less" href="css/app.min.less" />'
+    }))
+    .pipe(insertLines({
+        'before': /<\/body>$/,
+        'lineBefore': '<script src="js/tinycolor-min.js"></script>'
     }))
     .pipe(minifyHTML({collapseWhitespace:true, conservativeCollapse:true}))
     .pipe(gulp.dest('dist/'));
 });
 
 gulp.task('icon', function() {
-    return gulp.src('src/icon.png').pipe(gulp.dest('dist/'));
+    gulp.src('src/icon192x192.png').pipe(gulp.dest('dist/'));
+    return gulp.src('src/icon64x64.png').pipe(gulp.dest('dist/'));
 });
 
 gulp.task('fonts', function() {
-    return gulp.src('node_modules/font-awesome/fonts/*').pipe(gulp.dest('dist/fonts/'));
+    //return gulp.src('node_modules/font-awesome/fonts/*').pipe(gulp.dest('dist/fonts/'));
+    return gulp.src('node_modules/font-awesome/fonts/*').pipe(gulp.dest('dist/font-awesome/fonts/'));
 });
 
 gulp.task('js', function () {
@@ -93,6 +98,11 @@ gulp.task('js', function () {
     .pipe(minifyHTML({collapseWhitespace:true, conservativeCollapse:true}))
     .pipe(templateCache('templates.js', {root:'', module:'ui'}));
 
+    var tiny = gulp.src('node_modules/tinycolor2/dist/tinycolor-min.js')
+    .pipe(gulp.dest('./dist/js'));
+
+    var i18n = gulp.src('src/i18n.js').pipe(gulp.dest('dist/'));
+
     return streamqueue({ objectMode:true }, scripts, templates)
     .pipe(gulpif(/[.]min[.]js$/, gutil.noop(), uglify()))
     .pipe(concat('app.min.js'))
@@ -101,12 +111,28 @@ gulp.task('js', function () {
 });
 
 gulp.task('css', function () {
+    exec('node fixfa.js', function (err, stdout, stderr) {
+        if (err) {
+            console.log(stdout);
+            console.log(stderr);
+        }
+    });
+
     return gulp.src('src/index.html')
-    .pipe(ghtmlSrc({getFileName: getFileName.bind(this, 'href'), presets: 'css'}))
-    .pipe(minifyCss({compatibility: 'ie8'}))
+    .pipe(ghtmlSrc({getFileName:getFileName.bind(this, 'href'), presets:'css'}))
+    .pipe(minifyCss({compatibility:'ie8'}))
     .pipe(concat('app.min.css'))
     .pipe(header(fs.readFileSync('license.js')))
     .pipe(gulp.dest('dist/css/'));
+});
+
+gulp.task('less', function() {
+    return gulp.src('src/index.html')
+    .pipe(resources({less:true, css:false, js:false}))
+    .pipe(removeHtml())
+    .pipe(gulpif('**/*.less', concat('app.min.less')))
+    .pipe(header(fs.readFileSync('license.js')))
+    .pipe(gulp.dest('dist/css'));
 });
 
 var vendorPrefix = "vendor/";

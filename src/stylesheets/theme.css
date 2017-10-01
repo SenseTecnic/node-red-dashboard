@@ -1,7 +1,7 @@
+
 /*
 	ALL COMPONENTS/CONTENT
 */
-
 .nr-dashboard-disabled {
     opacity: 0.5 !important;
     pointer-events: none !important;
@@ -31,7 +31,12 @@ body.nr-dashboard-theme-light .nr-dashboard-dim { opacity: 0.4 !important; }
 */
 
 body.nr-dashboard-theme-light md-toolbar {
-	background-color: #0094CE;
+	background-color:#0094CE;
+	// color: contrast(#0094CE,#424242, #F7F7F7)
+}
+// DAN todo - make one stylesheet instead of specifying theme-light and theme-dark classes
+body.nr-dashboard-theme-dark md-toolbar {
+	background-color:#0094CE
 }
 
 
@@ -197,6 +202,23 @@ md-select-menu md-option:focus:not([disabled]):not([selected]) {
 /* Text */
 
 .nr-dashboard-theme-light .nr-dashboard-text {}
+
+
+/* Dialog */
+
+.nr-dashboard-theme-dark md-dialog {
+    color: #0f5c7b;
+    background-color: #fff;
+}
+
+.nr-dashboard-theme-light .md-dialog-content {
+    padding: 24px;
+}
+
+.nr-dashboard-theme-light .md-button.md-primary {
+	color: #0094ce !important;
+}
+
 
 /* Form */
 .nr-dashboard-theme-light .nr-dashboard-form-button {

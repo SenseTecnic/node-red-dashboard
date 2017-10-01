@@ -3,9 +3,9 @@
 angular.module('ui').controller('uiCardPanelController', ['uiSizes', '$timeout', '$scope',
     function(sizes, $timeout, $scope) {
         var ctrl = this;
-        ctrl.width = sizes.columns($scope.group) * sizes.sx + sizes.px * 2 + (sizes.columns($scope.group) - 1) * sizes.cx;
+        ctrl.width = (sizes.columns($scope.group) * sizes.sx) + (sizes.px * 2) + ((sizes.columns($scope.group) - 1) * sizes.cx);
         var defaultWidth = sizes.columns($scope.group);
-        var defaultHeight = 1;
+        var defaultHeight = 0;
 
         var root;
         ctrl.init = function (rootElement) {
@@ -21,10 +21,8 @@ angular.module('ui').controller('uiCardPanelController', ['uiSizes', '$timeout',
             $timeout(function() {
                 refreshSizes();
                 refreshInProgress = false;
-                if (done) {
-                    done();
-                }
-            }, 0);
+                if (done) { done(); }
+            }, 10);
         };
 
         var rows;
@@ -36,12 +34,23 @@ angular.module('ui').controller('uiCardPanelController', ['uiSizes', '$timeout',
                 var result = size.split('x');
                 var width = Math.max(1, Math.min(sizes.columns($scope.group), result ? parseInt(result[0]) || defaultWidth : defaultWidth));
                 var height = Math.max(1, result ? parseInt(result[1]) || defaultHeight : defaultHeight);
-                if (!parseInt(result[1]) && (child.attr('ui-template') !== undefined)) { /*is template node*/
+                if ((parseInt(result[1]) <= 0) && (child.attr('ui-template') !== undefined)) { /*is template node*/
                     // template node will size the height based upon it's content
                     // - child.height() defaults to calculating based on width of group
                     var ch = child.height() * parseInt($scope.group.header.config.width)/width;
-                    height = Math.ceil((ch + sizes.cy)/(sizes.cy + sizes.sy)+0.1);
+                    if (!ch || (ch <= 0)) { // if height is 0 or undefined
+                        ch = 0;
+                        var t = (child[0].innerHTML).toLowerCase();
+                        if (t.indexOf('<div') !== -1) { ch = 1; }
+                        if (t.indexOf('<p') !== -1) { ch = 1; }
+                        if (t.indexOf('<span') !== -1) { ch = 1; }
+                        if (t.indexOf('<b') !== -1) { ch = 1; }
+                        if (t.indexOf('<h') !== -1) { ch = 1; }
+                        if (t.indexOf('<f') !== -1) { ch = 1; }
+                    }
+                    height = Math.ceil(ch / (sizes.cy + sizes.sy));
                 }
+
                 var position = getNextPosition(width, height);
                 child.css({
                     left: position.left,
@@ -49,7 +58,9 @@ angular.module('ui').controller('uiCardPanelController', ['uiSizes', '$timeout',
                     width: sizes.sx * width + sizes.cx * (width-1),
                     height: sizes.sy * height + sizes.cy * (height-1)
                 });
-                child.addClass('visible');
+                if (height !== 0) {
+                    child.addClass('visible');
+                }
             });
             ctrl.height = rows.length ?
                 sizes.py * 2 + rows.length * sizes.sy + (rows.length - 1) * sizes.cy :
@@ -66,8 +77,8 @@ angular.module('ui').controller('uiCardPanelController', ['uiSizes', '$timeout',
 
         function getFreeAndOccupy(width, height) {
             var maxx = sizes.columns($scope.group) - width;
-            for (var y=0;y<1000;y++) {
-                for (var x=0;x<=maxx;x++) {
+            for (var y=0; y<1000; y++) {
+                for (var x=0; x<=maxx; x++) {
                     if (isFree(x, y, width, height)) {
                         occupy(x,y,width,height);
                         return {x:x, y:y};
@@ -89,12 +100,12 @@ angular.module('ui').controller('uiCardPanelController', ['uiSizes', '$timeout',
         }
 
         function isFree(x, y, width, height) {
-            for (var dy=0;dy<height; dy++) {
+            for (var dy=0; dy<height; dy++) {
                 var row = rows[y+dy];
                 if (!row) {
                     break;
                 }
-                for (var dx=0;dx<width;dx++) {
+                for (var dx=0; dx<width; dx++) {
                     if (row[x+dx]) {
                         return false;
                     }

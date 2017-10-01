@@ -13,12 +13,17 @@ module.exports = function(RED) {
         var control = {
                 type: 'dropdown',
                 label: config.label,
+                place: config.place || "Select option",
                 order: config.order,
                 value: config.payload || node.id,
                 width: config.width || group.config.width || 6,
-                height: config.height || 1,
-                options: config.options
+                height: config.height || 1
             };
+
+        for (var o=0; o<config.options.length; o++) {
+            config.options[o].label = config.options[o].label || config.options[o].value;
+        }
+        control.options = config.options;
 
         var emitOptions;
 
@@ -42,7 +47,6 @@ module.exports = function(RED) {
                 // otherwise that convenience info would not be sent (would not cause any problems)...
 
                 emitOptions = {isOptionsValid:false, value:undefined, newOptions:undefined};
-
                 do {
                     if (!msg.options || !Array.isArray(msg.options)) { break; }
                     emitOptions.newOptions = [];
@@ -50,11 +54,10 @@ module.exports = function(RED) {
                         emitOptions.isOptionsValid = true;
                         break;
                     }
-
                     // could check whether or not all members have same type
                     for (var i = 0; i < msg.options.length; i++) {
                         var opt = msg.options[i];
-                        if (opt === undefined || opt == null) { continue; }
+                        if (opt === undefined || opt === null) { continue; }
 
                         switch (typeof opt) {
                             case 'number': {
@@ -85,9 +88,8 @@ module.exports = function(RED) {
                     if (msg.payload) { emitOptions.value = msg.payload; }
                     emitOptions.isOptionsValid = true;
                 } while (false);
-
                 // finally adjust msg to reflect the input
-                msg.fromInput = true;
+                msg._fromInput = true;
                 if (emitOptions.isOptionsValid) {
                     control.options = emitOptions.newOptions;
                     control.value = emitOptions.value;
@@ -97,10 +99,10 @@ module.exports = function(RED) {
                     }
                 }
 
-                if (msg.payload) {
+                if (msg.hasOwnProperty("payload")) {
                     emitOptions.value = msg.payload;
                     control.value = emitOptions.value;
-                    emitOptions.fromInput = true;
+                    emitOptions._fromInput = true;
                     return emitOptions;
                 }
                 // we do not overide payload here due to 'opt.emitOnlyNewValues' in ui.js
@@ -113,8 +115,11 @@ module.exports = function(RED) {
             },
 
             beforeSend: function (msg) {
-                if (msg.fromInput) { delete msg.options; msg.payload = emitOptions.value; }
-                msg.topic = config.topic || msg.topic; //pass through topic if not set
+                if (msg._fromInput) {
+                    delete msg.options;
+                    msg.payload = emitOptions.value;
+                }
+                msg.topic = config.topic || msg.topic;
             }
         });
         node.on("close", done);
